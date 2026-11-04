@@ -1,17 +1,16 @@
 ```sql
 -- ============================================
--- DBMS LAB 6
--- PARTITIONED PRIMARY INDEX
--- CALL DETAIL DATABASE
+-- DBMS LAB 6 - PARTITIONED PRIMARY INDEX
 -- ============================================
 
+-- CREATE DATABASE
 DROP DATABASE IF EXISTS CallDetailDB;
 CREATE DATABASE CallDetailDB;
 USE CallDetailDB;
 
 
 -- ============================================
--- 1. CREATE TABLE WITH PARTITIONING
+-- CREATE TABLE WITH RANGE PARTITIONING
 -- ============================================
 
 CREATE TABLE calldetail (
@@ -21,46 +20,41 @@ CREATE TABLE calldetail (
     call_description VARCHAR(30),
 
     PRIMARY KEY (phone_number, call_start),
-
     INDEX idx_call_start (call_start)
 )
-PARTITION BY RANGE (YEAR(call_start)) (
-    PARTITION p_before_2023 VALUES LESS THAN (2023),
-    PARTITION p2023 VALUES LESS THAN (2024),
-    PARTITION p2024 VALUES LESS THAN (2025),
-    PARTITION p2025 VALUES LESS THAN (2026),
-    PARTITION p2026 VALUES LESS THAN (2027),
+PARTITION BY RANGE (UNIX_TIMESTAMP(call_start)) (
+    PARTITION p_before2023 VALUES LESS THAN (1672531200),
+    PARTITION p2023 VALUES LESS THAN (1704067200),
+    PARTITION p2024 VALUES LESS THAN (1735689600),
+    PARTITION p2025 VALUES LESS THAN (1767225600),
+    PARTITION p2026 VALUES LESS THAN (1798761600),
     PARTITION p_future VALUES LESS THAN MAXVALUE
 );
 
 
 -- ============================================
--- 2. INSERT SAMPLE DATA
+-- INSERT SAMPLE DATA
 -- ============================================
 
-INSERT INTO calldetail
-(phone_number, call_start, call_duration, call_description)
-VALUES
+INSERT INTO calldetail VALUES
 (9876543210, '2022-05-10 10:15:00', 120, 'Personal'),
 (9876543210, '2023-01-15 11:30:00', 300, 'Business'),
-(9876543211, '2023-06-20 14:45:00', 180, 'Personal'),
-(9876543212, '2024-02-10 09:00:00', 420, 'Business'),
-(9876543213, '2024-08-25 17:20:00', 60, 'Personal'),
+(9876543211, '2024-02-10 09:00:00', 420, 'Business'),
 (9876543210, '2025-03-12 13:10:00', 240, 'Business'),
-(9876543214, '2025-11-05 16:30:00', 360, 'Personal'),
-(9876543215, '2026-04-18 08:45:00', 150, 'Business'),
-(9876543216, '2026-09-22 19:15:00', 200, 'Personal');
+(9876543212, '2025-11-05 16:30:00', 360, 'Personal'),
+(9876543213, '2026-04-18 08:45:00', 150, 'Business');
 
 
 -- ============================================
--- 3. DISPLAY ALL RECORDS
+-- DISPLAY ALL RECORDS
 -- ============================================
 
 SELECT * FROM calldetail;
 
 
 -- ============================================
--- 4. QUERY WITHOUT PARTITION FILTER
+-- Q1. DISPLAY CALLS OF A PHONE NUMBER
+-- WITHOUT A PARTITION KEY FILTER
 -- ============================================
 
 SELECT *
@@ -69,46 +63,44 @@ WHERE phone_number = 9876543210;
 
 
 -- ============================================
--- 5. QUERY USING PARTITION KEY
--- Retrieve calls made during 2025
+-- Q2. RETRIEVE CALLS MADE DURING 2025
+-- USING PARTITION KEY
 -- ============================================
 
 SELECT *
 FROM calldetail
-WHERE call_start >= '2025-01-01 00:00:00'
-  AND call_start <  '2026-01-01 00:00:00';
+WHERE UNIX_TIMESTAMP(call_start) >= 1735689600
+AND UNIX_TIMESTAMP(call_start) < 1767225600;
 
 
 -- ============================================
--- 6. CHECK PARTITION INFORMATION
+-- Q3. DISPLAY PARTITION INFORMATION
 -- ============================================
 
-SELECT
-    PARTITION_NAME,
-    TABLE_ROWS
+SELECT PARTITION_NAME, TABLE_ROWS
 FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_SCHEMA = 'CallDetailDB'
-  AND TABLE_NAME = 'calldetail';
+AND TABLE_NAME = 'calldetail';
 
 
 -- ============================================
--- 7. VIEW THE QUERY EXECUTION PLAN
+-- Q4. CHECK QUERY EXECUTION PLAN
 -- ============================================
 
-EXPLAIN
+EXPLAIN PARTITIONS
 SELECT *
 FROM calldetail
-WHERE call_start >= '2025-01-01 00:00:00'
-  AND call_start <  '2026-01-01 00:00:00';
+WHERE UNIX_TIMESTAMP(call_start) >= 1735689600
+AND UNIX_TIMESTAMP(call_start) < 1767225600;
 
 
 -- ============================================
--- 8. CHECK WHICH PARTITIONS ARE USED
+-- Q5. CHECK SPECIFIC PARTITION
 -- ============================================
 
-EXPLAIN
+EXPLAIN PARTITIONS
 SELECT *
 FROM calldetail PARTITION (p2025)
-WHERE call_start >= '2025-01-01 00:00:00'
-  AND call_start <  '2026-01-01 00:00:00';
+WHERE UNIX_TIMESTAMP(call_start) >= 1735689600
+AND UNIX_TIMESTAMP(call_start) < 1767225600;
 ```
